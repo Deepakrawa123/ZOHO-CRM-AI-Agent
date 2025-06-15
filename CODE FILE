@@ -1,0 +1,90 @@
+## Directory: zoho-gpt-agent
+
+# .env
+OPENAI_API_KEY=sk-xxxxx
+ZOHO_ACCESS_TOKEN=1000.xxxx
+
+# requirements.txt
+openai
+langchain
+python-dotenv
+requests
+streamlit
+
+# tools/zoho_tools.py
+import requests
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+ZOHO_TOKEN = os.getenv("ZOHO_ACCESS_TOKEN")
+HEADERS = {
+    "Authorization": f"Zoho-oauthtoken {ZOHO_TOKEN}"
+}
+
+def get_leads():
+    url = "https://www.zohoapis.com/crm/v2/Leads"
+    response = requests.get(url, headers=HEADERS)
+    leads = response.json().get("data", [])
+    return leads
+
+def summarize_leads():
+    leads = get_leads()
+    summary = []
+    for lead in leads[:5]:
+        name = lead.get("Full_Name", "Unknown")
+        company = lead.get("Company", "N/A")
+        status = lead.get("Lead_Status", "No status")
+        summary.append(f"{name} from {company} is currently {status}.")
+    return "\n".join(summary)
+
+# agents/zoho_agent.py
+from langchain.agents import initialize_agent, Tool
+from langchain.agents.agent_types import AgentType
+from langchain.chat_models import ChatOpenAI
+from tools.zoho_tools import get_leads, summarize_leads
+
+tools = [
+    Tool(
+        name="GetZohoLeads",
+        func=lambda x: str(get_leads()),
+        description="Fetch recent leads from Zoho CRM."
+    ),
+    Tool(
+        name="SummarizeZohoLeads",
+        func=lambda x: summarize_leads(),
+        description="Summarize the status of leads in plain English."
+    )
+]
+
+llm = ChatOpenAI(temperature=0, model="gpt-4")
+
+agent = initialize_agent(
+    tools,
+    llm,
+    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    verbose=True
+)
+
+# main.py
+from agents.zoho_agent import agent
+
+if __name__ == "__main__":
+    print("Zoho GPT Agent Ready.")
+    while True:
+        query = input("\nAsk your CRM agent: ")
+        if query.lower() in ["exit", "quit"]:
+            break
+        response = agent.run(query)
+        print("\n\U0001f9e0 Response:\n", response)
+
+# app.py
+import streamlit as st
+from agents.zoho_agent import agent
+
+st.title("Zoho GPT Agent")
+query = st.text_input("Ask something about your leads...")
+
+if query:
+    response = agent.run(query)
+    st.markdown(f"### \U0001f9e0 Response:\n{response}")
