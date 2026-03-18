@@ -198,6 +198,6 @@ Add memory to your agent using LangChain’s memory modules
 
 Use vector DBs for semantic search over notes/emails (e.g., with FAISS or Chroma) 
 
- 
+ also use some different data base
 
  
